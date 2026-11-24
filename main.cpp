@@ -1,309 +1,207 @@
-// okay with my phone project, going to start of by doing these tasks
-// initalizing raylib, loading all the png's i have under phoneAssets
-// basically setting up how its done in the example code
-
-// configure the project: cmake -B build
-// compile: cmake --build build
-// run: ./build/main
-
+#include <array>
 #include <iostream>
 #include "raylib.h"
-using namespace std;
+#include "PrivacyScenario.h"
+
+using App = PrivacyScenario::App;
+using Permission = PrivacyScenario::Permission;
+
+void drawTextureIn(Texture2D texture, Rectangle destination) {
+    Rectangle source = {0, 0, static_cast<float>(texture.width), static_cast<float>(texture.height)};
+    DrawTexturePro(texture, source, destination, {0, 0}, 0, WHITE);
+}
+
+void drawButton(Rectangle bounds, const char* label, Color color, int size = 16) {
+    DrawRectangleRec(bounds, color);
+    DrawText(label, static_cast<int>(bounds.x + (bounds.width - MeasureText(label, size)) / 2),
+             static_cast<int>(bounds.y + (bounds.height - size) / 2), size, WHITE);
+}
+
+// New app screens are drawn with raylib primitives, so no further PNGs are needed.
+void drawAppScreen(int app, const PrivacyScenario& scenario, Texture2D instagram,
+                   bool musicPreview, bool shopPreview) {
+    const bool allowed = scenario.getPermission() == Permission::Granted;
+    const Rectangle screen = {402,221,198,371};
+    if (app == 0) {
+        drawTextureIn(instagram, screen);
+        return;
+    }
+    DrawRectangleRec(screen, RAYWHITE);
+    DrawRectangle(402,221,198,52,DARKBLUE);
+    DrawText(scenario.getAppName(),414,233,23,WHITE);
+    DrawText("FICTIONAL DEMO",414,259,10,WHITE);
+    if (app == 1) {
+        DrawText("Today's activity",414,292,18,DARKGRAY);
+        DrawRectangle(414,325,174,72,Fade(RED,0.10f));
+        DrawText("STEPS",426,337,13,MAROON);
+        DrawText(allowed ? "6,240" : "--",426,359,26,MAROON);
+        DrawRectangle(414,409,174,72,Fade(RED,0.10f));
+        DrawText("HEART RATE",426,421,13,MAROON);
+        DrawText(allowed ? "72 bpm" : "--",426,443,26,MAROON);
+        DrawText(allowed ? "Sample records only" : "No connected records",414,499,14,DARKGRAY);
+    } else if (app == 2) {
+        DrawRectangle(414,288,174,185,Fade(GREEN,0.15f));
+        for (int i=0; i<4; ++i) {
+            DrawRectangle(435+i*42,288,7,185,WHITE);
+            DrawRectangle(414,310+i*43,174,7,WHITE);
+        }
+        DrawLineEx({435,442},{478,442},5,BLUE);
+        DrawLineEx({478,442},{478,335},5,BLUE);
+        DrawLineEx({478,335},{560,335},5,BLUE);
+        DrawCircle(560,335,8,MAROON);
+        DrawCircle(435,442,8,allowed ? BLUE : GRAY);
+        DrawText(allowed ? "Demo current position" : "Manual starting point",414,486,14,DARKGRAY);
+        DrawText("Route: Home > Park",414,508,14,DARKGRAY);
+    } else if (app == 3) {
+        DrawRectangle(434,291,134,118,Fade(PURPLE,0.15f));
+        DrawCircle(501,350,38,PURPLE);
+        DrawLineEx({494,326},{494,370},5,WHITE);
+        DrawLineEx({494,326},{517,332},5,WHITE);
+        DrawCircle(486,371,9,WHITE);
+        DrawText("Discover a song",414,425,19,DARKGRAY);
+        DrawText(musicPreview ? "Sample: Evening Walk" : "Try the demo below",414,454,14,DARKGRAY);
+        DrawText("No audio is recorded",414,476,14,DARKGRAY);
+        drawButton({414,500,174,32},allowed ? "Identify (demo)" : "Browse (demo)",PURPLE,15);
+    } else {
+        DrawText(allowed ? "Picked for you" : "Popular items",414,291,19,DARKGRAY);
+        DrawRectangle(414,325,174,65,Fade(ORANGE,0.15f));
+        DrawText(allowed ? "Trail backpack" : "Canvas tote",424,339,17,DARKGRAY);
+        DrawText(allowed ? "$48 - sample" : "$18 - sample",424,365,14,MAROON);
+        DrawRectangle(414,403,174,65,Fade(ORANGE,0.15f));
+        DrawText(allowed ? "Walking shoes" : "Travel mug",424,417,17,DARKGRAY);
+        DrawText(allowed ? "$65 - sample" : "$12 - sample",424,443,14,MAROON);
+        DrawText(shopPreview ? "Preview only - no order" : "Demo catalog",414,478,14,DARKGRAY);
+        drawButton({414,500,174,32},"Preview item",BROWN,15);
+    }
+}
 
 int main() {
-
-    // open a window 
-    InitWindow(1400,800,"Window");
-
-    SetTargetFPS(30); // setting FPS
-
-    // need to load all images in the project
-
-    Texture2D Phonephoto = LoadTexture("phoneAssets/phone.png"); // loading the phone texture
-    Texture2D chatPhoto = LoadTexture("phoneAssets/chat.png"); // loading the phone texture
-    Texture2D healthPhoto = LoadTexture("phoneAssets/health.png"); // loading the phone texture
-    Texture2D mapPhoto = LoadTexture("phoneAssets/maps.png"); // loading the phone texture
-    Texture2D musicPhoto = LoadTexture("phoneAssets/music.png"); // loading the phone texture
-    Texture2D shopPhoto = LoadTexture("phoneAssets/shop.png"); // loading the phone texture
-    Texture2D instagramInterface = LoadTexture("phoneAssets/instagram.png"); // loading the instagram interface
-
-    // checking if images are loaded successfully
-
-    if(Phonephoto.id == 0){
-        CloseWindow();
-        return -1;
+    InitWindow(1400,800,"Privacy Explorer - Five Apps");
+    SetTargetFPS(30);
+    const std::array<const char*,7> paths = {{"phoneAssets/phone.png", "phoneAssets/chat.png",
+        "phoneAssets/health.png", "phoneAssets/maps.png", "phoneAssets/music.png",
+        "phoneAssets/shop.png", "phoneAssets/instagram.png"}};
+    std::array<Texture2D,7> textures{};
+    for (std::size_t i=0; i<textures.size(); ++i) {
+        textures[i] = LoadTexture(paths[i]);
+        if (textures[i].id == 0) {
+            std::cerr << "Could not load " << paths[i] << ". Run from the project root.\n";
+            for (auto texture : textures) if (texture.id != 0) UnloadTexture(texture);
+            CloseWindow();
+            return 1;
+        }
     }
 
-    if(chatPhoto.id == 0){
-        CloseWindow();
-        return -1;
-    }
+    std::array<PrivacyScenario,5> scenarios = {{PrivacyScenario(App::Instagram),
+        PrivacyScenario(App::Health), PrivacyScenario(App::Maps),
+        PrivacyScenario(App::Music), PrivacyScenario(App::Shop)}};
+    const std::array<Rectangle,5> icons = {{{420,260,50,50},{530,260,50,50},
+        {420,360,50,50},{530,360,50,50},{475,460,50,50}}};
+    const Rectangle homeButton = {410,608,180,32};
+    const Rectangle settingsButton = {412,548,178,36};
+    const Rectangle allowButton = {414,376,174,42};
+    const Rectangle denyButton = {414,430,174,42};
+    const Rectangle backButton = {830,590,100,35};
+    const Rectangle nextButton = {1220,590,100,35};
+    int activeApp = -1;
+    bool showPrompt = false;
+    bool musicPreview = false;
+    bool shopPreview = false;
+    std::cout << "Privacy Explorer: choose a phone app. All records are simulated.\n";
 
-    if(healthPhoto.id == 0){
-        CloseWindow();
-        return -1;
-    }
-
-    if(mapPhoto.id == 0){
-        CloseWindow();
-        return -1;
-    }
-
-    if(musicPhoto.id == 0){
-        CloseWindow();
-        return -1;
-    }
-
-    if(shopPhoto.id == 0){
-        CloseWindow();
-        return -1;
-    }
-
-    if(instagramInterface.id == 0){
-        CloseWindow();
-        return -1;
-    }
-
-    // these variables basically control which screen will be pushed/displayed
-     int currentScreen = 0; // phonescreen or instagramInterface?
-     bool showLocationPrompt = false; // permission popup
-     bool locationPermissionAnswered = false; // user makes decision
-     bool locationPermissionGranted = false; // stores what deceision user makes
-     int continueStep = 0; // the continue box and stuff
-
-    // got to keep hte window run until user closes
-
-    while(!WindowShouldClose()){
-
-        BeginDrawing(); // new drawing
-        ClearBackground(BLACK);
-        
-        if(currentScreen == 0){ // when its 0, its in the phone home interface, when it goes to 1, it will click the specific app its on
-            Rectangle sourcePhone = { 0, 0, (float)Phonephoto.width, (float)Phonephoto.height };
-            Rectangle sourceChat = { 0, 0, (float)chatPhoto.width, (float)chatPhoto.height };
-            Rectangle sourceHealth = { 0, 0, (float)healthPhoto.width, (float)healthPhoto.height };
-            Rectangle sourceMap = { 0, 0, (float)mapPhoto.width, (float)mapPhoto.height };
-            Rectangle sourceMusic = { 0, 0, (float)musicPhoto.width, (float)musicPhoto.height };
-            Rectangle sourceShop = { 0, 0, (float)shopPhoto.width, (float)shopPhoto.height };
-
-            Rectangle phoneDest   = { 250, 150, 500, 500 };
-            Rectangle chatDest   = { 420, 260, 50, 50};
-            Rectangle healthDest   = { 530, 260, 50, 50};
-            Rectangle mapDest   = { 420, 360, 50, 50};
-            Rectangle musicDest   = { 530, 360, 50, 50};
-            Rectangle shopDest   = { 475, 460, 50, 50};
-
-            // draws the phone and app icons
-            DrawTexturePro(Phonephoto, sourcePhone, phoneDest, {0, 0}, 0.0f, WHITE);
-            DrawTexturePro(chatPhoto, sourceChat, chatDest, {0, 0}, 0.0f, WHITE);
-            DrawTexturePro(healthPhoto, sourceHealth, healthDest, {0, 0}, 0.0f, WHITE);
-            DrawTexturePro(mapPhoto, sourceMap, mapDest, {0, 0}, 0.0f, WHITE);
-            DrawTexturePro(musicPhoto, sourceMusic, musicDest, {0, 0}, 0.0f, WHITE);
-            DrawTexturePro(shopPhoto, sourceShop, shopDest, {0, 0}, 0.0f, WHITE);
-            
-             // ok next I need to click any app in my template, for the first one I will just work with instagram, and finsih all neccessary steps for this one
-        
-            Vector2 mouse = GetMousePosition(); // vector2 is a raylib data type storing x and y values
-
-            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse,chatDest)){ // detecting if mouse was clicked, and making sure it touches instagram
-                std::cout << "X: " << mouse.x << " Y: " << mouse.y << endl;
-                currentScreen = 1;
+    while (!WindowShouldClose()) {
+        const Vector2 mouse = GetMousePosition();
+        const bool clicked = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+        // Input is handled before drawing. This mutually exclusive chain prevents
+        // opening an app from also choosing an overlapping permission button.
+        if (activeApp == -1) {
+            if (clicked) for (int i=0; i<5; ++i) {
+                if (CheckCollisionPointRec(mouse,icons[i])) {
+                    activeApp = i;
+                    showPrompt = scenarios[i].getPermission() == Permission::Pending;
+                    std::cout << "Opened " << scenarios[i].getAppName() << ": "
+                              << scenarios[i].getStatus() << '\n';
+                    break;
+                }
+            }
+        } else if (clicked && CheckCollisionPointRec(mouse,homeButton)) {
+            activeApp = -1;
+            showPrompt = false;
+        } else if (showPrompt) {
+            if (clicked && (CheckCollisionPointRec(mouse,allowButton) || CheckCollisionPointRec(mouse,denyButton))) {
+                auto& scenario = scenarios[activeApp];
+                scenario.answerPermission(CheckCollisionPointRec(mouse,allowButton));
+                showPrompt = false;
+                if (activeApp == 3) musicPreview = false;
+                if (activeApp == 4) shopPreview = false;
+                std::cout << scenario.getAppName() << " - " << scenario.getAccessName()
+                          << ": " << scenario.getStatus() << " (simulation only)\n";
+            }
+        } else if (clicked) {
+            auto& scenario = scenarios[activeApp];
+            if (CheckCollisionPointRec(mouse,settingsButton)) showPrompt = true;
+            else if (CheckCollisionPointRec(mouse,backButton)) scenario.previousStep();
+            else if (CheckCollisionPointRec(mouse,nextButton)) scenario.nextStep();
+            else if (CheckCollisionPointRec(mouse,{414,500,174,32})) {
+                if (activeApp == 3) {
+                    musicPreview = true;
+                    std::cout << "Music: showing a fictional song; no microphone used.\n";
+                } else if (activeApp == 4) {
+                    shopPreview = true;
+                    std::cout << "Shop: preview only; no purchase or payment.\n";
+                }
             }
         }
-            // instagram screen, basically when the app is pressed, currentscreen switches to 1, which load this if statement
-        if(currentScreen == 1){
-             // instagram interface clicked
 
-             Vector2 mouse = GetMousePosition(); // vector2 is a raylib data type storing x and y values
-             Rectangle createPostButton = {480,548,40,40}; // clickabale area for instagram
-
-             Rectangle sourceInstagram = {0,0,(float)instagramInterface.width,(float)instagramInterface.height};
-             Rectangle instagramDest = {402,221,198,371};
-             DrawTexturePro(instagramInterface,sourceInstagram,instagramDest,{0,0},0.0f,WHITE);
-
-             if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, createPostButton)){ // detecting if mouse was clicked, and making sure it touches instagram
-                showLocationPrompt = true; // permission prompt should appear
-             }
-
-             // adding the permission prompt
-            if(showLocationPrompt == true){
-
-                Rectangle allowButton = {435,390,55,30};
-                Rectangle denyButton = {495,390,75,30};
-
-                //allow
-                if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, allowButton)){ // detecting if mouse was clicked, and making sure it touches instagram
-                    locationPermissionGranted = true;
-                    locationPermissionAnswered = true;
-                    continueStep = 0;
-                    showLocationPrompt = false; // permission prompt should appear
-
-                    std::cout << "John Doe has allowed location access" << endl;
+        BeginDrawing();
+        ClearBackground(BLACK);
+        DrawText("PRIVACY EXPLORER",250,82,30,WHITE);
+        DrawText("Five apps. Different data. Your choices.",250,121,18,LIGHTGRAY);
+        // Keep the phone frame visible on every screen.
+        drawTextureIn(textures[0],{250,150,500,500});
+        if (activeApp == -1) {
+            for (int i=0; i<5; ++i) {
+                drawTextureIn(textures[i+1],icons[i]);
+                const char* name = scenarios[i].getAppName();
+                DrawText(name,static_cast<int>(icons[i].x+(50-MeasureText(name,13))/2),
+                         static_cast<int>(icons[i].y+55),13,WHITE);
             }
-                     
-            // denied prompt
-            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, denyButton)){ // detecting if mouse was clicked, and making sure it touches instagram
-                locationPermissionGranted = false;
-                locationPermissionAnswered = true;
-                continueStep = 0;
-                showLocationPrompt = false; // permission prompt should appear
-
-                //testing
-
-                std::cout << "John doe has denied location access." << endl;
-            }
-
-
-                DrawRectangle(420,330,160,130,LIGHTGRAY);
-                DrawText("Allow Location?",420,345,16,BLACK);
-
-                DrawRectangle(435,390,55,30,GREEN);
-                DrawText("Allow",442,398,12,WHITE);
-
-                DrawRectangle(495,390,75,30,RED);
-                DrawText("Dont Allow",497,398,10,WHITE);
-            }
-
-            
-            // privacy insight panel
+            DrawText("Choose an app to explore",800,220,26,WHITE);
+            DrawText("Health records, location, microphone",800,270,19,LIGHTGRAY);
+            DrawText("and personalization each tell a different story.",800,300,19,LIGHTGRAY);
+            DrawText("All data is fictional. No device access occurs.",800,365,18,LIGHTGRAY);
+            DrawText("Choices stay saved until you close the program.",800,400,18,LIGHTGRAY);
+        } else {
+            const auto& scenario = scenarios[activeApp];
+            drawAppScreen(activeApp,scenario,textures[6],musicPreview,shopPreview);
+            drawButton(settingsButton,"Permission settings",DARKBLUE,15);
+            drawButton(homeButton,"< Home",DARKGRAY);
             DrawRectangle(800,150,550,500,WHITE);
             DrawRectangleLines(800,150,550,500,GRAY);
-
             DrawText("Privacy Insights",830,175,28,DARKBLUE);
-            DrawText("INSTAGRAM - JOHN DOE",830,215,16,DARKGRAY);
-
-            // navigation buttons
-            Rectangle backButton = {830,590,100,35};
-            Rectangle nextButton = {1220,590,100,35};
-
-            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
-
-                if(CheckCollisionPointRec(mouse,backButton) && continueStep > 0){
-                    continueStep--;
-                }
-
-                if(CheckCollisionPointRec(mouse,nextButton) && continueStep < 2){
-                    continueStep++;
-                }
+            DrawText(TextFormat("%s - JOHN DOE",scenario.getAppName()),830,215,18,DARKGRAY);
+            DrawText("SIMULATION ONLY",830,240,12,GRAY);
+            scenario.drawInsights();
+            drawButton(backButton,"BACK",!showPrompt && scenario.canGoBack() ? DARKBLUE : GRAY);
+            drawButton(nextButton,"NEXT",!showPrompt && scenario.canGoNext() ? DARKBLUE : GRAY);
+            DrawText(TextFormat("%d / 3",scenario.getStep()+1),1075,600,16,DARKGRAY);
+            if (showPrompt) {
+                DrawRectangleRec({402,221,198,371},Fade(BLACK,0.65f));
+                DrawRectangle(406,312,190,178,WHITE);
+                DrawRectangleLines(406,312,190,178,DARKGRAY);
+                DrawText(scenario.getPrompt(),414,330,16,BLACK);
+                DrawText("Simulated choice",414,354,14,DARKGRAY);
+                drawButton(allowButton,"Allow",DARKGREEN,18);
+                drawButton(denyButton,"Don't Allow",MAROON,18);
             }
-
-            // stage 1: permission
-            if(continueStep == 0){
-
-                DrawText("01 - PERMISSION",830,270,20,DARKBLUE);
-
-                if(locationPermissionAnswered == false){
-                    DrawText("LOCATION ACCESS: PENDING",830,320,18,ORANGE);
-                    DrawText("Instagram is requesting access to",830,365,17,BLACK);
-                    DrawText("John's device location.",830,390,17,BLACK);
-                    DrawText("Choose Allow or Don't Allow on the phone.",830,455,15,DARKGRAY);
-                }
-                else if(locationPermissionGranted == true){
-                    DrawText("LOCATION ACCESS: GRANTED",830,320,18,GREEN);
-                    DrawText("John allowed Instagram to access",830,365,17,BLACK);
-                    DrawText("his device location through this",830,390,17,BLACK);
-                    DrawText("permission.",830,415,17,BLACK);
-                }
-                else{
-                    DrawText("LOCATION ACCESS: DENIED",830,320,18,RED);
-                    DrawText("John restricted Instagram from",830,365,17,BLACK);
-                    DrawText("accessing his device location",830,390,17,BLACK);
-                    DrawText("through this permission.",830,415,17,BLACK);
-                }
-            }
-
-            // stage 2: possible inferences
-            else if(continueStep == 1){
-
-                DrawText("02 - POSSIBLE INFERENCES",830,270,20,DARKBLUE);
-
-                if(locationPermissionGranted == true){
-                    DrawText("Repeated location records could",830,330,17,BLACK);
-                    DrawText("help reveal patterns such as:",830,355,17,BLACK);
-                    DrawText("- Frequently visited places",830,410,17,BLACK);
-                    DrawText("- Possible home and work locations",830,440,17,BLACK);
-                    DrawText("- Daily movement patterns",830,470,17,BLACK);
-                }
-                else{
-                    DrawText("Location access through this",830,330,17,BLACK);
-                    DrawText("permission is restricted.",830,355,17,BLACK);
-                    DrawText("However, other information such as",830,410,17,BLACK);
-                    DrawText("public photos and posts could still",830,440,17,BLACK);
-                    DrawText("provide clues about location.",830,470,17,BLACK);
-                }
-            }
-
-            // stage 3: privacy impact
-            else if(continueStep == 2){
-
-                DrawText("03 - PRIVACY IMPACT",830,270,20,DARKBLUE);
-
-                if(locationPermissionGranted == true){
-                    DrawText("POTENTIAL BENEFIT",830,330,18,DARKGREEN);
-                    DrawText("Location-based features can provide",830,360,16,BLACK);
-                    DrawText("useful services and recommendations.",830,385,16,BLACK);
-
-                    DrawText("PRIVACY CONSIDERATION",830,440,18,DARKBLUE);
-                    DrawText("Repeated records can reveal personal",830,470,16,BLACK);
-                    DrawText("patterns. Access and sharing depend",830,495,16,BLACK);
-                    DrawText("on the app's actual practices.",830,520,16,BLACK);
-                }
-                else{
-                    DrawText("PRIVACY BENEFIT",830,330,18,DARKGREEN);
-                    DrawText("One source of location information",830,360,16,BLACK);
-                    DrawText("has been restricted.",830,385,16,BLACK);
-
-                    DrawText("LIMITATION",830,440,18,DARKBLUE);
-                    DrawText("This does not guarantee complete",830,470,16,BLACK);
-                    DrawText("anonymity. Other information could",830,495,16,BLACK);
-                    DrawText("still reveal details about John.",830,520,16,BLACK);
-                }
-            }
-
-            // navigation controls
-            DrawRectangleRec(backButton,LIGHTGRAY);
-            DrawText("BACK",855,600,15,BLACK);
-
-            DrawRectangleRec(nextButton,BLUE);
-            DrawText("NEXT",1248,600,15,WHITE);
-
-            DrawText(TextFormat("%d / 3",continueStep+1),1075,600,16,DARKGRAY);
-
         }
-
         EndDrawing();
     }
-
-    // CITATION: used chatgpt: getting an error for "cout is ambigious", chatgpt said just use std before cout.
-
-    UnloadTexture(Phonephoto);
-    std:: cout << endl << endl << endl;
-    std::cout << "more can happen in the terminal after the window is closed ..." << endl;
-
-    UnloadTexture(chatPhoto);
-    std::cout << endl << endl << endl;
-    std::cout << "more can happen in the terminal after the window is closed ..." << endl;
-
-    UnloadTexture(healthPhoto);
-    std::cout << endl << endl << endl;
-    std::cout << "more can happen in the terminal after the window is closed ..." << endl;
-
-    UnloadTexture(mapPhoto);
-    std::cout << endl << endl << endl;
-    std::cout << "more can happen in the terminal after the window is closed ..." << endl;
-
-    UnloadTexture(musicPhoto);
-    std::cout << endl << endl << endl;
-    std::cout << "more can happen in the terminal after the window is closed ..." << endl;
-
-    UnloadTexture(shopPhoto);
-
-    UnloadTexture(instagramInterface);
-
+    for (auto texture : textures) UnloadTexture(texture);
+    std::cout << "Session summary:\n";
+    for (const auto& scenario : scenarios)
+        std::cout << scenario.getAppName() << " - " << scenario.getAccessName()
+                  << ": " << scenario.getStatus() << '\n';
     CloseWindow();
-    std::cout << endl << endl << endl;
-    std::cout << "more can happen in the terminal after the window is closed ..." << endl;
-
-
     return 0;
 }

@@ -16,7 +16,6 @@ int main() {
     SetTargetFPS(30);
 
     // load a TEXTURE, an image that will fill a shape
-    /* more info: https://www.raylib.com/examples/textures/loader.html?name=textures_image_drawing */
     Texture2D photo = LoadTexture("cats-img.jpg");
     if (photo.id == 0) {
         CloseWindow();
@@ -43,7 +42,6 @@ int main() {
         DrawText(message.c_str(), 40, 40, 24, textColor);
         // message, x, y, font-size, color
         // more colors you can use with raylib:
-        // https://www.raylib.com/examples/shapes/loader.html?name=shapes_colors_palette
 
         if (IsKeyDown(KEY_ENTER)) {
             message = "hello " + name;
